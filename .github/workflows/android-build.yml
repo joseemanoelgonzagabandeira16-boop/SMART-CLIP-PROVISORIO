@@ -61,13 +61,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          SETTINGS="$(find extracted -type f \\( -name settings.gradle -o -name settings.gradle.kts \\) | head -n 1 || true)"
+          SETTINGS="$(find extracted -type f -name 'settings.gradle*' | head -n 1 || true)"
           if [ -n "$SETTINGS" ]; then
             PROJECT_DIR="$(dirname "$SETTINGS")"
           else
-            BUILD_FILE="$(find extracted -type f \\( -name build.gradle -o -name build.gradle.kts \\) | head -n 1 || true)"
+            BUILD_FILE="$(find extracted -type f -name 'build.gradle*' | head -n 1 || true)"
             if [ -z "$BUILD_FILE" ]; then
-              echo "::error::No Gradle settings.gradle(.kts) or build.gradle(.kts) found in extracted ZIP."
+              echo "::error::No Gradle settings or build file found in extracted ZIP."
               exit 1
             fi
             PROJECT_DIR="$(dirname "$BUILD_FILE")"
