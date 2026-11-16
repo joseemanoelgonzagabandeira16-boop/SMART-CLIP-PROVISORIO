@@ -1,0 +1,67 @@
+name: Android build
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Extract project archive
+        shell: bash
+        run: |
+          mkdir -p extracted
+          shopt -s nullglob
+          archives=( *.zip )
+          if [ ${#archives[@]} -eq 0 ]; then
+            echo "::error::No ZIP project archive found in repository root."
+            exit 1
+          fi
+          for archive in "${archives[@]}"; do
+            unzip -o "$archive" -d extracted
+          done
+
+      - name: Locate Gradle project
+        id: project
+        shell: bash
+        run: |
+          WRAPPER=$(find . -type f -name gradlew -not -path './.git/*' | head -n 1)
+          if [ -n "$WRAPPER" ]; then
+            chmod +x "$WRAPPER"
+            echo "wrapper=$WRAPPER" >> "$GITHUB_OUTPUT"
+            echo "dir=$(dirname "$WRAPPER")" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "::error::No Gradle wrapper (gradlew) found. The ZIP must contain the complete Android project, including gradlew and Gradle build files."
+          exit 1
+
+      - name: Build debug APK
+        working-directory: ${{ steps.project.outputs.dir }}
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: smart-clip-debug-apk
+          path: '**/build/outputs/apk/**/*.apk'
+          if-no-files-found: error
