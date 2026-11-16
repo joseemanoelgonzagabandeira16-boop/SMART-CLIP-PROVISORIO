@@ -11,6 +11,9 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      ANDROID_HOME: /usr/local/lib/android/sdk
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -21,8 +24,17 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Install Android SDK packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | sort -V | tail -n 1)"
+          if [ -z "$SDKMANAGER" ]; then
+            echo "::error::Android SDK command-line tools (sdkmanager) were not found."
+            exit 1
+          fi
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" --install "platform-tools" "platforms;android-35" "build-tools;35.0.0"
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -30,6 +42,7 @@ jobs:
       - name: Extract project archive
         shell: bash
         run: |
+          set -euo pipefail
           mkdir -p extracted
           shopt -s nullglob
           archives=( *.zip )
@@ -45,15 +58,14 @@ jobs:
         id: project
         shell: bash
         run: |
-          WRAPPER=$(find . -type f -name gradlew -not -path './.git/*' | head -n 1)
-          if [ -n "$WRAPPER" ]; then
-            chmod +x "$WRAPPER"
-            echo "wrapper=$WRAPPER" >> "$GITHUB_OUTPUT"
-            echo "dir=$(dirname "$WRAPPER")" >> "$GITHUB_OUTPUT"
-            exit 0
+          set -euo pipefail
+          WRAPPER="$(find . -type f -name gradlew -not -path './.git/*' | head -n 1 || true)"
+          if [ -z "$WRAPPER" ]; then
+            echo "::error::No Gradle wrapper (gradlew) found. The ZIP must contain the complete Android project, including Gradle build files."
+            exit 1
           fi
-          echo "::error::No Gradle wrapper (gradlew) found. The ZIP must contain the complete Android project, including gradlew and Gradle build files."
-          exit 1
+          chmod +x "$WRAPPER"
+          echo "dir=$(dirname "$WRAPPER")" >> "$GITHUB_OUTPUT"
 
       - name: Build debug APK
         working-directory: ${{ steps.project.outputs.dir }}
