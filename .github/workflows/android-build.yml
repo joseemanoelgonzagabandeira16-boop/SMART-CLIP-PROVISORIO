@@ -38,6 +38,8 @@ jobs:
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
 
       - name: Extract project archive
         shell: bash
@@ -59,17 +61,31 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          WRAPPER="$(find . -type f -name gradlew -not -path './.git/*' | head -n 1 || true)"
-          if [ -z "$WRAPPER" ]; then
-            echo "::error::No Gradle wrapper (gradlew) found. The ZIP must contain the complete Android project, including Gradle build files."
-            exit 1
+          SETTINGS="$(find extracted -type f \\( -name settings.gradle -o -name settings.gradle.kts \\) | head -n 1 || true)"
+          if [ -n "$SETTINGS" ]; then
+            PROJECT_DIR="$(dirname "$SETTINGS")"
+          else
+            BUILD_FILE="$(find extracted -type f \\( -name build.gradle -o -name build.gradle.kts \\) | head -n 1 || true)"
+            if [ -z "$BUILD_FILE" ]; then
+              echo "::error::No Gradle settings.gradle(.kts) or build.gradle(.kts) found in extracted ZIP."
+              exit 1
+            fi
+            PROJECT_DIR="$(dirname "$BUILD_FILE")"
           fi
-          chmod +x "$WRAPPER"
-          echo "dir=$(dirname "$WRAPPER")" >> "$GITHUB_OUTPUT"
+          echo "Gradle project found at: $PROJECT_DIR"
+          if [ -f "$PROJECT_DIR/gradlew" ]; then
+            chmod +x "$PROJECT_DIR/gradlew"
+            echo "command=./gradlew" >> "$GITHUB_OUTPUT"
+          else
+            echo "No wrapper found; using installed Gradle 8.9."
+            echo "command=gradle" >> "$GITHUB_OUTPUT"
+          fi
+          echo "dir=$PROJECT_DIR" >> "$GITHUB_OUTPUT"
 
       - name: Build debug APK
         working-directory: ${{ steps.project.outputs.dir }}
-        run: ./gradlew assembleDebug --no-daemon
+        shell: bash
+        run: ${{ steps.project.outputs.command }} assembleDebug --no-daemon
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
