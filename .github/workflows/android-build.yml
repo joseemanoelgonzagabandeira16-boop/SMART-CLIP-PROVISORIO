@@ -82,6 +82,14 @@ jobs:
           fi
           echo "dir=$PROJECT_DIR" >> "$GITHUB_OUTPUT"
 
+      - name: Apply repository source overrides
+        if: ${{ hashFiles('app/src/main/AndroidManifest.xml') != '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "${{ steps.project.outputs.dir }}/app/src/main"
+          cp app/src/main/AndroidManifest.xml "${{ steps.project.outputs.dir }}/app/src/main/AndroidManifest.xml"
+
       - name: Upload extracted source for review
         uses: actions/upload-artifact@v4
         with:
