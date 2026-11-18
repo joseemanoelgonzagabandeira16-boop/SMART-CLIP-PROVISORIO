@@ -3,6 +3,8 @@ name: Android build
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -11,102 +13,50 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    env:
-      ANDROID_HOME: /usr/local/lib/android/sdk
-      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Set up Java 17
+      - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
-
-      - name: Install Android SDK packages
-        shell: bash
-        run: |
-          set -euo pipefail
-          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | sort -V | tail -n 1)"
-          if [ -z "$SDKMANAGER" ]; then
-            echo "::error::Android SDK command-line tools (sdkmanager) were not found."
-            exit 1
-          fi
-          yes | "$SDKMANAGER" --licenses >/dev/null || true
-          "$SDKMANAGER" --install "platform-tools" "platforms;android-35" "build-tools;35.0.0"
-
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools platforms;android-35 build-tools;35.0.0
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '8.9'
-
+          gradle-version: '8.10.2'
       - name: Extract project archive
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p extracted
-          shopt -s nullglob
-          archives=( *.zip )
-          if [ ${#archives[@]} -eq 0 ]; then
-            echo "::error::No ZIP project archive found in repository root."
-            exit 1
-          fi
-          for archive in "${archives[@]}"; do
-            unzip -o "$archive" -d extracted
-          done
-
-      - name: Locate Gradle project
-        id: project
-        shell: bash
-        run: |
-          set -euo pipefail
-          SETTINGS="$(find extracted -type f -name 'settings.gradle*' | head -n 1 || true)"
-          if [ -n "$SETTINGS" ]; then
-            PROJECT_DIR="$(dirname "$SETTINGS")"
-          else
-            BUILD_FILE="$(find extracted -type f -name 'build.gradle*' | head -n 1 || true)"
-            if [ -z "$BUILD_FILE" ]; then
-              echo "::error::No Gradle settings or build file found in extracted ZIP."
-              exit 1
-            fi
-            PROJECT_DIR="$(dirname "$BUILD_FILE")"
-          fi
-          echo "Gradle project found at: $PROJECT_DIR"
-          if [ -f "$PROJECT_DIR/gradlew" ]; then
-            chmod +x "$PROJECT_DIR/gradlew"
-            echo "command=./gradlew" >> "$GITHUB_OUTPUT"
-          else
-            echo "No wrapper found; using installed Gradle 8.9."
-            echo "command=gradle" >> "$GITHUB_OUTPUT"
-          fi
-          echo "dir=$PROJECT_DIR" >> "$GITHUB_OUTPUT"
-
-      - name: Apply repository source overrides
-        if: ${{ hashFiles('app/src/main/AndroidManifest.xml') != '' }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p "${{ steps.project.outputs.dir }}/app/src/main"
-          cp app/src/main/AndroidManifest.xml "${{ steps.project.outputs.dir }}/app/src/main/AndroidManifest.xml"
-
-      - name: Upload extracted source for review
-        uses: actions/upload-artifact@v4
-        with:
-          name: smart-clip-source-review
-          path: ${{ steps.project.outputs.dir }}/
-          include-hidden-files: true
-          if-no-files-found: error
-          retention-days: 3
-
+          unzip -o CREATOR-OS-feature-cut-instruction-text-upload.zip -d extracted
+          SETTINGS="$(find extracted -type f -name 'settings.gradle*' | head -n 1)"
+          PROJECT_DIR="$(dirname "$SETTINGS")"
+          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+          echo "Project directory: $PROJECT_DIR"
+      - name: Apply repository manifest
+        run: cp app/src/main/AndroidManifest.xml "$PROJECT_DIR/app/src/main/AndroidManifest.xml"
+      - name: Run unit tests and Android lint
+        run: gradle --no-daemon -p "$PROJECT_DIR" -PVERSION_CODE=1 testDebugUnitTest lintDebug
       - name: Build debug APK
-        working-directory: ${{ steps.project.outputs.dir }}
-        shell: bash
-        run: ${{ steps.project.outputs.command }} assembleDebug --no-daemon
-
-      - name: Upload APK
+        run: gradle --no-daemon -p "$PROJECT_DIR" -PVERSION_CODE=1 assembleDebug
+      - name: Upload installable debug APK
         uses: actions/upload-artifact@v4
         with:
           name: smart-clip-debug-apk
-          path: '**/build/outputs/apk/**/*.apk'
+          path: ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+          retention-days: 14
+      - name: Upload source review
+        uses: actions/upload-artifact@v4
+        with:
+          name: smart-clip-source-review
+          path: ${{ env.PROJECT_DIR }}/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7
