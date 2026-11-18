@@ -5,7 +5,7 @@ import shutil
 import sys
 
 project = Path(sys.argv[1]).resolve()
-repo = Path(__file__).resolve().parent
+repo = Path(__file__).resolve().parent.parent
 source = project / "app/src/main/java/ai/creatoros/smartclip/MainActivity.kt"
 worker_target = project / "app/src/main/java/ai/creatoros/smartclip/ScheduledPostReminderWorker.kt"
 worker_source = repo / "app/src/main/java/ai/creatoros/smartclip/ScheduledPostReminderWorker.kt"
