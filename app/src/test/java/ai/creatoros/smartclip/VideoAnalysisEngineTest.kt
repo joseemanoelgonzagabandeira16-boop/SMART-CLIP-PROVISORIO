@@ -103,7 +103,7 @@ class VideoAnalysisEngineTest {
 
     @Test
     fun rejectsMissingHashtagsField() {
-        val invalid = validScript.replace("        HASHTAGS: #tiktok", "")
+        val invalid = validScript.replace("HASHTAGS: #tiktok", "")
         assertThrows(IllegalArgumentException::class.java) {
             VideoAnalysisEngine.getCutsPerPlatform(invalid)
         }
