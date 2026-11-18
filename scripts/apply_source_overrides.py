@@ -29,6 +29,15 @@ if dependency not in gradle_text:
     gradle.write_text(gradle_text.replace(anchor, anchor + "\n" + dependency, 1), encoding="utf-8")
 
 text = source.read_text(encoding="utf-8")
+transaction_anchor = """        val entries = read(context)
+        val now = System.currentTimeMillis()"""
+transaction_patch = """        val originalEntries = read(context)
+        val entries = originalEntries.toMutableList()
+        val now = System.currentTimeMillis()"""
+if transaction_anchor in text:
+    text = text.replace(transaction_anchor, transaction_patch, 1)
+elif transaction_patch not in text:
+    raise SystemExit("Não foi possível preparar rollback da fila.")
 permission_anchor = "        super.onCreate(savedInstanceState)\n        window.statusBarColor"
 permission_patch = """        super.onCreate(savedInstanceState)
         val notificationPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
@@ -58,13 +67,11 @@ schedule_patch = """            save(context, entries.sortedBy { it.scheduledAt 
                     ))
                     .addTag("smartclip-publication-reminder")
                     .build()
-                runCatching {
-                    androidx.work.WorkManager.getInstance(context).enqueueUniqueWork(
-                        "smartclip-reminder-\u0024{entry.id}",
-                        androidx.work.ExistingWorkPolicy.REPLACE,
-                        request
-                    )
-                }
+                androidx.work.WorkManager.getInstance(context).enqueueUniqueWork(
+                    "smartclip-reminder-\u0024{entry.id}",
+                    androidx.work.ExistingWorkPolicy.REPLACE,
+                    request
+                ).result.get(30, java.util.concurrent.TimeUnit.SECONDS)
             }
         } catch (scheduleError: Exception) {"""
 if "OneTimeWorkRequestBuilder<ScheduledPostReminderWorker>" not in text:
@@ -99,6 +106,24 @@ if "COMPARTILHAR VÍDEO" not in text:
         raise SystemExit("Não encontrei o cartão de vídeos programados para inserir o compartilhamento.")
     text = text.replace(share_anchor, share_patch, 1)
 
+rollback_anchor = "            createdFiles.forEach { runCatching { it.delete() } }"
+rollback_patch = """            createdFiles.forEachIndexed { index, file ->
+                val entryIndex = entries.size - orderedClips.size + index
+                val failedEntry = entries.getOrNull(entryIndex)
+                if (failedEntry != null) {
+                    runCatching {
+                        androidx.work.WorkManager.getInstance(context)
+                            .cancelUniqueWork("smartclip-reminder-\u0024{failedEntry.id}")
+                            .result.get(10, java.util.concurrent.TimeUnit.SECONDS)
+                    }
+                }
+                runCatching { file.delete() }
+            }
+            runCatching { save(context, originalEntries) }"""
+if rollback_anchor in text:
+    text = text.replace(rollback_anchor, rollback_patch, 1)
+elif "save(context, originalEntries)" not in text:
+    raise SystemExit("Não foi possível preparar rollback dos lembretes.")
 text = text.replace('Text("0", color = Color.White, fontSize = 88.sp', 'Text("—", color = Color.White, fontSize = 88.sp')
 text = text.replace('Text("0", color = Color.White, fontSize = 22.sp', 'Text("—", color = Color.White, fontSize = 22.sp')
 for label in ("INSCRITOS HOJE", "CURTIDAS", "COMENTÁRIOS", "VISUALIZAÇÕES"):
