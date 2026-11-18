@@ -95,16 +95,21 @@ if "var cutsPerPlatform by remember" not in adjust_text:
 
 txt_start_anchor = "            Column(\n                Modifier\n                    .fillMaxWidth()\n                    .clip(RoundedCornerShape(22.dp))"
 summary_anchor = "            Column(\n                Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))"
+mode_anchor = """            Column(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp))
+                    .background(Color(0xFF102B52)).padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {"""
 format_anchor = "            Column(\n                Modifier\n                    .fillMaxWidth()\n                    .clip(RoundedCornerShape(28.dp))"
 if "if (!useGemini) {" not in adjust_text:
     start = adjust_text.find(txt_start_anchor)
     summary = adjust_text.find(summary_anchor, start + 1)
-    fmt = adjust_text.find(format_anchor, summary + 1)
-    if min(start, summary, fmt) < 0:
+    mode = adjust_text.find(mode_anchor, summary + 1)
+    if min(start, summary, mode) < 0:
         raise SystemExit("Não foi possível delimitar a área de importação TXT.")
-    block = adjust_text[start:fmt]
+    block = adjust_text[start:mode]
     block = "".join(("    " + line if line.strip() else line) for line in block.splitlines(keepends=True))
-    adjust_text = adjust_text[:start] + "            if (!useGemini) {\n" + block + "            }\n\n" + adjust_text[fmt:]
+    adjust_text = adjust_text[:start] + "            if (!useGemini) {\n" + block + "            }\n\n" + adjust_text[mode:]
 
 adjust_text = adjust_text.replace('Text("MODO DE ANÁLISE", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)',
                                   'Text("MODO DE CRIAÇÃO", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)', 1)
@@ -178,6 +183,9 @@ elif "No modo TXT, importe o arquivo de instruções" not in adjust_text:
 
 adjust_text = adjust_text.replace('Text("ANALISAR", color = Color.White, fontSize = 24.sp',
                                   'Text(if (useGemini) "ANALISAR COM IA" else "GERAR CORTES DO TXT", color = Color.White, fontSize = 20.sp', 1)
+# The explanatory copy above changed the file length; recompute offsets before replacing the screen.
+adjust_start = main_text.index("private fun AdjustCutsScreen")
+adjust_end = main_text.index("@UnstableApi", adjust_start)
 main_text = main_text[:adjust_start] + adjust_text + main_text[adjust_end:]
 main.write_text(main_text, encoding="utf-8")
 
