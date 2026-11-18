@@ -19,6 +19,8 @@ text = main.read_text(encoding="utf-8")
 changes = [
     ("    var analysisUseGemini by remember { mutableStateOf(false) }\n",
      "    var analysisUseGemini by remember { mutableStateOf(false) }\n    var analysisVerticalFormat by remember { mutableStateOf(false) }\n"),
+    ("onAnalyze = { video, count, duration, useGemini, instructions ->",
+     "onAnalyze = { video, count, duration, useGemini, instructions, verticalFormat ->"),
     ("                analysisUseGemini = useGemini\n                analysisCustomInstructions = instructions",
      "                analysisUseGemini = useGemini\n                analysisVerticalFormat = verticalFormat\n                analysisCustomInstructions = instructions"),
     ("            useGemini = analysisUseGemini,\n            customInstructions",
