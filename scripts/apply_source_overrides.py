@@ -73,6 +73,7 @@ schedule_patch = """            save(context, entries.sortedBy { it.scheduledAt 
                     request
                 ).result.get(30, java.util.concurrent.TimeUnit.SECONDS)
             }
+            orderedClips.forEach { (_, source) -> source.delete() }
         } catch (scheduleError: Exception) {"""
 if "OneTimeWorkRequestBuilder<ScheduledPostReminderWorker>" not in text:
     if schedule_anchor not in text:
@@ -128,6 +129,9 @@ text = text.replace('Text("0", color = Color.White, fontSize = 88.sp', 'Text("�
 text = text.replace('Text("0", color = Color.White, fontSize = 22.sp', 'Text("—", color = Color.White, fontSize = 22.sp')
 for label in ("INSCRITOS HOJE", "CURTIDAS", "COMENTÁRIOS", "VISUALIZAÇÕES"):
     text = text.replace(f'PerformanceMetric("♙", "{label}", "0"', f'PerformanceMetric("♙", "{label}", "—"')
+text = text.replace('PerformanceMetric("♡", "CURTIDAS", "0"', 'PerformanceMetric("♡", "CURTIDAS", "—"')
+text = text.replace('PerformanceMetric("▱", "COMENTÁRIOS", "0"', 'PerformanceMetric("▱", "COMENTÁRIOS", "—"')
+text = text.replace('PerformanceMetric("◎", "VISUALIZAÇÕES", "0"', 'PerformanceMetric("◎", "VISUALIZAÇÕES", "—"')
 text = text.replace('var refreshVersion by remember { mutableStateOf(0) }\n', '')
 text = text.replace('.clickable { refreshVersion++ }\n', '')
 text = text.replace('Text("ATUALIZAR", color = Color.White', 'Text("SEM DADOS CONECTADOS", color = Color.White')
