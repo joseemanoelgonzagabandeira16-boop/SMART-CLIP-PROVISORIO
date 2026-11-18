@@ -229,8 +229,9 @@ ai_function = r'''
             Escolha intervalos diferentes dentro do vídeo quando houver conteúdo suficiente. Não crie cortes fora do vídeo.
             Para cada corte, gere início e fim em milissegundos inteiros (start_ms e end_ms), título (até 100 caracteres),
             descrição e hashtags relevantes. Adapte título, descrição e hashtags ao estilo da plataforma.
-            YouTube deve vir primeiro, depois Instagram e por último TikTok. Dentro de cada rede, numere os cortes
-            na ordem cronológica em que aparecem no vídeo.
+            Não imponha uma ordem fixa entre plataformas. Numere os cortes de cada plataforma pela ordem cronológica
+            em que aparecem no vídeo. A ordem de publicação será definida posteriormente pelos horários configurados
+            pelo usuário na tela REDES SOCIAIS, e não pela ordem das plataformas neste JSON.
             Não invente fatos sobre o conteúdo. Não inclua legendas/transcrição nem texto sobreposto no vídeo.
             Retorne SOMENTE JSON válido, sem markdown, neste formato:
             {"clips":[{"platform":"YouTube","start_ms":1000,"end_ms":25000,"title":"Título","description":"Descrição","hashtags":"#tema #assunto"}]}
@@ -273,6 +274,7 @@ ai_function = r'''
 
         val platformOrder = listOf("YouTube", "Instagram", "TikTok")
         val perPlatform = platformOrder.associateWith { mutableListOf<SmartClipSuggestion>() }
+        val generatedOrder = mutableListOf<SmartClipSuggestion>()
         val seenIntervals = mutableSetOf<String>()
         for (index in 0 until clips.length()) {
             val item = clips.optJSONObject(index) ?: error("O corte " + (index + 1) + " veio em formato inválido.")
@@ -299,18 +301,16 @@ ai_function = r'''
             require(combinedText.length <= maxDescription) {
                 "A descrição do corte " + (index + 1) + " excede o limite da plataforma " + platform + "."
             }
-            perPlatform.getValue(platform).add(
-                SmartClipSuggestion(platform, title, combinedText, "", startMs, endMs)
-            )
+            val suggestion = SmartClipSuggestion(platform, title, combinedText, "", startMs, endMs)
+            perPlatform.getValue(platform).add(suggestion)
+            generatedOrder.add(suggestion)
         }
         platformOrder.forEach { platform ->
             require(perPlatform.getValue(platform).size == requestedCount) {
                 "A IA não gerou exatamente " + requestedCount + " cortes para " + platform + ". Tente novamente."
             }
         }
-        return platformOrder.flatMap { platform ->
-            perPlatform.getValue(platform).sortedBy { it.startMs }
-        }
+        return generatedOrder
     }
 
 '''
