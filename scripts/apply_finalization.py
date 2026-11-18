@@ -110,13 +110,11 @@ adjust_text = adjust_text.replace('Text("MODO DE ANÁLISE", color = Color.White,
                                   'Text("MODO DE CRIAÇÃO", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)', 1)
 adjust_text = adjust_text.replace('label = "SEM GEMINI"', 'label = "ARQUIVO TXT"', 1)
 adjust_text = adjust_text.replace('label = "COM GEMINI"', 'label = "COM IA"', 1)
-old_explanation = '''                    if (useGemini) "O Gemini pode analisar visualmente o vídeo, mas os horários INICIO e FIM do TXT são obrigatórios e nunca serão alterados."
-                    else "O aplicativo usa diretamente os horários INICIO e FIM do TXT, sem enviar o vídeo para uma API. Não gera legendas.",'''
-new_explanation = '''                    if (useGemini) "A IA analisa o vídeo inteiro, identifica os melhores momentos e cria os horários, títulos, descrições e hashtags. Não precisa de TXT."
-                    else "O modo manual usa exclusivamente os horários e metadados definidos no arquivo TXT. Nenhuma IA é utilizada.",'''
-if old_explanation in adjust_text:
-    adjust_text = adjust_text.replace(old_explanation, new_explanation, 1)
-elif "A IA analisa o vídeo inteiro" not in adjust_text:
+old_ai_sentence = "O Gemini pode analisar visualmente o vídeo, mas os horários INICIO e FIM do TXT são obrigatórios e nunca serão alterados."
+old_txt_sentence = "O aplicativo usa diretamente os horários INICIO e FIM do TXT, sem enviar o vídeo para uma API. Não gera legendas."
+main_text = main_text.replace(old_ai_sentence, "A IA analisa o vídeo inteiro, identifica os melhores momentos e cria os horários, títulos, descrições e hashtags. Não precisa de TXT.", 1)
+main_text = main_text.replace(old_txt_sentence, "O modo manual usa exclusivamente os horários e metadados definidos no arquivo TXT. Nenhuma IA é utilizada.", 1)
+if "O Gemini pode analisar visualmente o vídeo" in main_text:
     raise SystemExit("Não foi possível atualizar a explicação dos modos.")
 
 ai_controls_anchor = format_anchor
