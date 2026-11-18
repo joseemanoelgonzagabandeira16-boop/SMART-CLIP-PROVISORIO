@@ -39,12 +39,14 @@ jobs:
           PROJECT_DIR="$(dirname "$SETTINGS")"
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
           echo "Project directory: $PROJECT_DIR"
-      - name: Apply repository manifest
-        run: cp app/src/main/AndroidManifest.xml "$PROJECT_DIR/app/src/main/AndroidManifest.xml"
+      - name: Apply repository overrides
+        run: |
+          cp app/src/main/AndroidManifest.xml "$PROJECT_DIR/app/src/main/AndroidManifest.xml"
+          python3 scripts/apply_source_overrides.py "$PROJECT_DIR"
       - name: Run unit tests and Android lint
-        run: gradle --no-daemon -p "$PROJECT_DIR" -PVERSION_CODE=1 testDebugUnitTest lintDebug
+        run: gradle --no-daemon -p "$PROJECT_DIR" -PVERSION_CODE=${{ github.run_number }} testDebugUnitTest lintDebug
       - name: Build debug APK
-        run: gradle --no-daemon -p "$PROJECT_DIR" -PVERSION_CODE=1 assembleDebug
+        run: gradle --no-daemon -p "$PROJECT_DIR" -PVERSION_CODE=${{ github.run_number }} assembleDebug
       - name: Upload installable debug APK
         uses: actions/upload-artifact@v4
         with:
