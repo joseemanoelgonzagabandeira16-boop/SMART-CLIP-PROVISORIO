@@ -43,6 +43,7 @@ jobs:
         run: |
           cp app/src/main/AndroidManifest.xml "$PROJECT_DIR/app/src/main/AndroidManifest.xml"
           python3 scripts/apply_source_overrides.py "$PROJECT_DIR"
+          python3 scripts/apply_finalization.py "$PROJECT_DIR"
       - name: Run unit tests and Android lint
         run: gradle --no-daemon -p "$PROJECT_DIR" -PVERSION_CODE=${{ github.run_number }} testDebugUnitTest lintDebug
       - name: Build debug APK
